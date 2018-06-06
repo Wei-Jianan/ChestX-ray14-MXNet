@@ -1,21 +1,12 @@
 import os
 from collections import OrderedDict
-
 import matplotlib.pyplot as plt
 import pandas as pd
-
 from mxnet.gluon.data import Dataset
 from mxnet import nd, image
 
-whole_url = ''
-demo_url = 'https://drive.google.com/uc?export=download&id=12fbMgiEW0MuK85wXOWpZ4n_36llqz6Zw'
-
-# dir_path = os.path.dirname(os.path.realpath(__file__))
-# data_dir_path = os.path.join(dir_path, 'ChestX-ray14/')
-# images_dir_path = os.path.join(data_dir_path, 'images')
-# train_list_path = os.path.join(dir_path, 'train_val_list.txt')
-# test_list_path = os.path.join(dir_path, 'test_list.txt')
-# data_entry_path = os.path.join(data_dir_path, 'Data_Entry_2017.csv')
+# whole_url = ''
+# demo_url = 'https://drive.google.com/uc?export=download&id=12fbMgiEW0MuK85wXOWpZ4n_36llqz6Zw'
 
 _labels = ['Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'Nodule',
            'Pneumonia', 'Pneumothorax', 'Consolidation', 'Edema', 'Emphysema', 'Fibrosis',
@@ -109,7 +100,7 @@ class ChestXRay14Dataset(Dataset):
 
 if __name__ == '__main__':
     data_entry = get_data_entry()
-    chestX_ray14_train = ChestXRay14Dataset(data_entry, train=False )
+    chestX_ray14_train = ChestXRay14Dataset(data_entry, train=False)
     image, label = chestX_ray14_train[3]
     print(label)
     print(label_vector2label_str(label))
