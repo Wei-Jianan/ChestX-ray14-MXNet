@@ -1,8 +1,10 @@
+import fnmatch
 import os
+import zipfile
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import pandas as pd
-from mxnet.gluon.data import Dataset
+from mxnet.gluon.data import Dataset, DataLoader
 from mxnet import nd, image
 
 # whole_url = ''
@@ -13,6 +15,28 @@ _labels = ['Atelectasis', 'Cardiomegaly', 'Effusion', 'Infiltration', 'Mass', 'N
            'Pleural_Thickening', 'Hernia']
 _label2order_table = OrderedDict((label, order) for order, label in enumerate(_labels))
 num_labels = len(_label2order_table)
+
+
+def upzip_and_delete() -> str:
+    """
+    unzip the zip file and delete it
+    :return: path to the extracted folder
+    """
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    zip_files_path = []
+    for root_path, dir_names, file_names in os.walk(dir_path):
+        for file_name in fnmatch.filter(file_names, '*.zip'):
+            zip_files_path.append(os.path.join(root_path, file_name))
+    assert len(zip_files_path) == 1, 'there should be one zip file and only one zip inside current director.'
+    to_path = dir_path
+    with zipfile.ZipFile(zip_files_path[0], "r") as zip_ref:
+        assert zip_ref.namelist()[0] == 'ChestX-ray14/', "zip file only contains my directory."
+        extracted_dir_name = zip_ref.namelist()[0]
+        zip_ref.extractall(to_path)
+
+    # TODO leave the demo mode and delete unfinished.
+
+    return extracted_dir_name
 
 
 def get_data_entry(root=None) -> pd.DataFrame:
@@ -38,9 +62,16 @@ def label_vector2label_str(label_vector: nd.NDArray) -> str:
 
 
 class ChestXRay14Dataset(Dataset):
-
     def __init__(self, data_entry: pd.DataFrame, root=None, train=True,
-                 transform=lambda X, y: (X.astype('float32') / 255, y.astype('float32'))):
+                 transform=lambda X, y: (X.astype('float32'), y.astype('float32'))):
+        """
+        Dataset that could be randomly accessed storing all labeled ChestX-ray images.
+
+        :param data_entry: pandas.DataFrame read the data_entry.csv file from the Chestx_ray14 file
+        :param root:
+        :param train: True for training dataset
+        :param transform: lazy transforming the data when accessed
+        """
         super(ChestXRay14Dataset, self).__init__()
         self._transform = transform
         self._data_entry = data_entry
@@ -85,7 +116,7 @@ class ChestXRay14Dataset(Dataset):
         image_name = self._image_names[idx]
         raw_image = image.imread(os.path.join(self._image_dir_path,
                                               image_name))
-        print('image name:\t', image_name)
+        # print('image name:\t', image_name)
         label = get_label_vector(self._data_entry, pic_name=image_name)
         if self._transform is not None:
             return self._transform(raw_image, label)
@@ -98,12 +129,41 @@ class ChestXRay14Dataset(Dataset):
         raise NotImplemented
 
 
-if __name__ == '__main__':
+def load_data_ChestX_ray14(batch_size, resize=512, root=None):
+    """
+    :param batch_size:
+    :param resize: what size to changed, the raw size is 1024 * 1024
+    :param root:
+    :return:  a batch iterator that return (resized image, label vector) when called __next__().
+    """
+    def transform_mnist(data, label):
+        # Transform an example.
+        if resize:
+            # n = data.shape[0]
+            # new_data = nd.zeros((resize, resize, data.shape[2]))
+            new_data = image.imresize(data, resize, resize)
+            data = new_data
+
+        # change data from height x width x channel to channel x height x width
+        return nd.transpose(data.astype('float32'), (2, 0, 1)) / 255, label.astype('float32')
+
     data_entry = get_data_entry()
-    chestX_ray14_train = ChestXRay14Dataset(data_entry, train=False)
-    image, label = chestX_ray14_train[3]
-    print(label)
-    print(label_vector2label_str(label))
-    print(image)
-    plt.imshow(image)
-    plt.show()
+    chestX_ray_train = ChestXRay14Dataset(data_entry, root=root, train=True, transform=transform_mnist)
+    chestX_ray_test = ChestXRay14Dataset(data_entry, root=root, train=False, transform=transform_mnist)
+
+    sampler = None  # TODO random sampler into the DataLoader when network is fine.
+    train_data = DataLoader(chestX_ray_train, batch_size)
+    test_data = DataLoader(chestX_ray_test, batch_size)
+    return train_data, test_data
+
+
+if __name__ == '__main__':
+    # data_entry = get_data_entry()
+    # chestX_ray_train = ChestXRay14Dataset(data_entry, train=True, transform=None)
+    # chestX_ray_test = ChestXRay14Dataset(data_entry, train=False, transform=None)
+    # print(chestX_ray_train[1])
+    train_iter, test_iter = load_data_ChestX_ray14(10)
+    for data, label in train_iter:
+        plt.imshow(nd.transpose(data[0], (1, 2, 0)).asnumpy())
+        plt.show()
+        print(label_vector2label_str(label[1]))
