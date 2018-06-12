@@ -39,7 +39,7 @@ def upzip_and_delete() -> str:
     return extracted_dir_name
 
 
-def get_data_entry(root=None) -> pd.DataFrame:
+def _get_data_entry(root=None) -> pd.DataFrame:
     if root is not None:
         root = os.path.expanduser(root)
     else:
@@ -134,7 +134,9 @@ def load_data_ChestX_ray14(batch_size, resize=512, root=None):
     :param batch_size:
     :param resize: what size to changed, the raw size is 1024 * 1024
     :param root:
-    :return:  a batch iterator that return (resized image, label vector) when called __next__().
+    :return:   (training data iterator, testing data iterator)
+                batch iterators that return (resized images, label vectors) when called __next__().
+
     """
     def transform_mnist(data, label):
         # Transform an example.
@@ -147,23 +149,32 @@ def load_data_ChestX_ray14(batch_size, resize=512, root=None):
         # change data from height x width x channel to channel x height x width
         return nd.transpose(data.astype('float32'), (2, 0, 1)) / 255, label.astype('float32')
 
-    data_entry = get_data_entry()
+    data_entry = _get_data_entry()
     chestX_ray_train = ChestXRay14Dataset(data_entry, root=root, train=True, transform=transform_mnist)
+    num_train = len(chestX_ray_train)
     chestX_ray_test = ChestXRay14Dataset(data_entry, root=root, train=False, transform=transform_mnist)
+    num_test = len(chestX_ray_test)
 
     sampler = None  # TODO random sampler into the DataLoader when network is fine.
-    train_data = DataLoader(chestX_ray_train, batch_size)
+    train_data = DataLoader(chestX_ray_train, batch_size, )
     test_data = DataLoader(chestX_ray_test, batch_size)
     return train_data, test_data
 
 
 if __name__ == '__main__':
-    # data_entry = get_data_entry()
-    # chestX_ray_train = ChestXRay14Dataset(data_entry, train=True, transform=None)
-    # chestX_ray_test = ChestXRay14Dataset(data_entry, train=False, transform=None)
+    data_entry = _get_data_entry()
+    chestX_ray_train = ChestXRay14Dataset(data_entry, train=True, transform=None)
+    chestX_ray_test = ChestXRay14Dataset(data_entry, train=False, transform=None)
     # print(chestX_ray_train[1])
-    train_iter, test_iter = load_data_ChestX_ray14(10)
-    for data, label in train_iter:
-        plt.imshow(nd.transpose(data[0], (1, 2, 0)).asnumpy())
-        plt.show()
-        print(label_vector2label_str(label[1]))
+
+
+    # train_iter, test_iter = load_data_ChestX_ray14(10)
+    # for data, label in train_iter:
+    #     plt.imshow(nd.transpose(data[0], (1, 2, 0)).asnumpy())
+    #     plt.show()
+    #     print(label_vector2label_str(label[1]))
+
+    im, ls = chestX_ray_train[1]
+    plt.imshow(im.asnumpy())
+    plt.show()
+    print(im.dtype)
