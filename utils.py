@@ -55,7 +55,7 @@ def evaluate_loss(data_iter, net, loss_fn=gluon.loss.SoftmaxCrossEntropyLoss(spa
         features, labels, _ = _get_batch(batch, ctx)
         for X, y in zip(features, labels):
             output = net(X)
-            logging.info('output shape:\t{}'.format(output.shape))
+            logging.info('evaluate_loss output shape:\t{}'.format(output.shape))
             loss = loss_fn(output, y)
             # logging.info('loss in batch:\t{}'.format(loss))
             loss_sum += loss.mean().asscalar()
@@ -75,10 +75,11 @@ def evaluate_AUC(data_iter, net, ctx=[mx.cpu()]):
         features, labels, _ = _get_batch(batch, ctx)
         for X, y in zip(features, labels):
             y_hat = net(X)
-            y_hat = y_hat[:, :_first_num_class_left]  # for debugging
+            # y_hat = y_hat[:, :_first_num_class_left]  # for debugging
+            logging.info('evaluate_AUC output shape:\t{}'.format(y_hat.shape))
             outputs_in_batches.append(y_hat)
             # logging.debug(y_hat[:5])
-            y = y[:, :_first_num_class_left]  # for debugging
+            # y = y[:, :_first_num_class_left]  # for debugging
             labels_in_batches.append(y)
             # logging.debug(y[:5])
 
