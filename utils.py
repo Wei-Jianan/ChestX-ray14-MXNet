@@ -6,7 +6,6 @@ import os
 
 from sklearn import metrics
 
-import dataset
 import numpy as np
 from mxnet import nd, gluon, autograd
 
@@ -14,7 +13,10 @@ from time import time
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO, stream=sys.stdout)
+
+
+def set_logging_level(level):
+    logging.basicConfig(format='%(levelname)s:%(message)s', level=level, stream=sys.stdout)
 
 
 def _get_batch(batch, ctx):
@@ -44,7 +46,7 @@ def try_all_gpus():
     return ctxes
 
 
-def evaluate_loss(data_iter, net, loss_fn, ctx):
+def evaluate_loss(data_iter, net, loss_fn=gluon.loss.SoftmaxCrossEntropyLoss(sparse_label=False), ctx=[mx.cpu()]):
     if isinstance(data_iter, mx.io.MXDataIter):
         data_iter.reset()
     loss_sum = 0
@@ -55,6 +57,7 @@ def evaluate_loss(data_iter, net, loss_fn, ctx):
             output = net(X)
             logging.info('output shape:\t{}'.format(output.shape))
             loss = loss_fn(output, y)
+            logging.info('loss in batch:\t{}'.format(loss))
             loss_sum += loss.mean().asscalar()
     return loss_sum / len(data_iter)
 
@@ -72,26 +75,27 @@ def evaluate_AUC(data_iter, net, ctx=[mx.cpu()]):
         features, labels, _ = _get_batch(batch, ctx)
         for X, y in zip(features, labels):
             y_hat = net(X)
-            # y_hat = y_hat[:, :_first_num_class_left]  # for debugging
+            y_hat = y_hat[:, :_first_num_class_left]  # for debugging
             outputs_in_batches.append(y_hat)
             # logging.debug(y_hat[:5])
-            # y = y[:, :_first_num_class_left]  # for debugging
+            y = y[:, :_first_num_class_left]  # for debugging
             labels_in_batches.append(y)
             # logging.debug(y[:5])
 
         nd.waitall()
-    num_samples = sum([len(output) for output in outputs_in_batches])
-    num_classes = labels_in_batches[0].shape[1]
-    logging.info('num_samplesL\t{}'.format(num_samples))
-    logging.info('num_classes:\t{}'.format(num_classes))
 
-    AUC = _calculate_AUC(outputs_in_batches, labels_in_batches, num_samples, num_classes)
+    AUC = _calculate_AUC(outputs_in_batches, labels_in_batches)
 
     #     print('increase mem 2:\t', get_mem() - mem)
     return AUC
 
 
-def _calculate_AUC(outputs_in_batches, labels_in_batches, num_samples, num_classes):
+def _calculate_AUC(outputs_in_batches, labels_in_batches):
+    num_samples = sum([len(output) for output in outputs_in_batches])
+    num_classes = labels_in_batches[0].shape[1]
+    logging.info('num_samplesL\t{}'.format(num_samples))
+    logging.info('num_classes:\t{}'.format(num_classes))
+
     all_outputs = np.zeros((num_samples, num_classes), dtype='float32')
     all_labels = np.zeros((num_samples, num_classes), dtype='float32')
 
@@ -136,7 +140,7 @@ def train_parallel(train_iter, test_iter, net, loss_fn, trainer, ctx, num_epochs
                 losses.append(loss)
 
                 # y_hat = y_hat[:, :_first_num_class_left]  # for debugging
-                outputs_in_batches.append(y_hat)
+                outputs_in_batches.append(y_hat)  # this will take about 10m more space in GPU memory.
                 # logging.info('y_hat.shape:{}'.format(y_hat.shape))
                 # logging.debug(y_hat[:5])
                 # y = y[:, :_first_num_class_left]  # for debugging
@@ -148,12 +152,8 @@ def train_parallel(train_iter, test_iter, net, loss_fn, trainer, ctx, num_epochs
             train_loss_sum += sum([l.sum().asscalar() for l in losses]) / batch_size
 
             nd.waitall()
-        num_samples = sum([len(output) for output in outputs_in_batches])
-        num_classes = labels_in_batches[0].shape[1]
-        logging.info('num_samplesL\t{}'.format(num_samples))
-        logging.info('num_classes:\t{}'.format(num_classes))
 
-        train_AUC = _calculate_AUC(outputs_in_batches, labels_in_batches, num_samples, num_classes)
+        train_AUC = _calculate_AUC(outputs_in_batches, labels_in_batches)
         test_AUC = evaluate_AUC(test_iter, net, ctx)
 
         print("epoch %d, loss %.4f, time %.1f sec" % (
