@@ -57,7 +57,7 @@ def evaluate_loss(data_iter, net, loss_fn=gluon.loss.SoftmaxCrossEntropyLoss(spa
             output = net(X)
             logging.info('output shape:\t{}'.format(output.shape))
             loss = loss_fn(output, y)
-            logging.info('loss in batch:\t{}'.format(loss))
+            # logging.info('loss in batch:\t{}'.format(loss))
             loss_sum += loss.mean().asscalar()
     return loss_sum / len(data_iter)
 
