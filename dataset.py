@@ -46,6 +46,10 @@ def _get_data_entry(root=None) -> pd.DataFrame:
         root = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             'ChestX-ray14/')
     data_entry_path = os.path.join(root, 'Data_Entry_2017.csv')
+    # an mistake when zipping the whole file
+    if not os.path.isfile(data_entry_path):
+        data_entry_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                       'Data_Entry_2017.csv')
     df = pd.read_csv(data_entry_path, dtype=str)
     df = df.drop(columns=df.columns[2:].tolist())
     df.columns = ['Index', 'Labels']
