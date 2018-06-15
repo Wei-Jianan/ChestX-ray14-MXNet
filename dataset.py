@@ -4,7 +4,7 @@ import zipfile
 from collections import OrderedDict
 import matplotlib.pyplot as plt
 import pandas as pd
-from mxnet.gluon.data import Dataset, DataLoader
+from mxnet.gluon.data import Dataset, DataLoader, RandomSampler
 from mxnet import nd, image
 
 # whole_url = ''
@@ -154,10 +154,9 @@ def load_data_ChestX_ray14(batch_size, resize=512, root=None):
     num_train = len(chestX_ray_train)
     chestX_ray_test = ChestXRay14Dataset(data_entry, root=root, train=False, transform=transform_mnist)
     num_test = len(chestX_ray_test)
-
-    sampler = None  # TODO random sampler into the DataLoader when network is fine.
-    train_data = DataLoader(chestX_ray_train, batch_size, )
-    test_data = DataLoader(chestX_ray_test, batch_size)
+    # TODO uncomment when using linux
+    train_data = DataLoader(chestX_ray_train, batch_size, sampler=RandomSampler(num_train), num_workers=0)#, num_workers=3)
+    test_data = DataLoader(chestX_ray_test, batch_size, sampler=RandomSampler(num_test), num_workers=0) #, num_workers=3)
     return train_data, test_data
 
 
